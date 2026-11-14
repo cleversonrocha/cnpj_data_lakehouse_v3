@@ -1,0 +1,68 @@
+name: Databricks Asset Bundle CI/CD
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+  push:
+    branches: [develop, main]
+
+env:
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+jobs:
+  # ETAPA 1: Integração Contínua (CI) - Validação de Sintaxe
+  ci-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v6
+
+      - name: Instalar Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validar sintaxe do Bundle
+        run: |
+          databricks bundle validate -t dev
+          databricks bundle validate -t staging
+          databricks bundle validate -t prod
+
+  # ETAPA 2: Entrega Contínua (CD) - Deploy, Testes e Promoção
+  cd-deploy:
+    needs: ci-validation
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v6
+
+      - name: Instalar Databricks CLI
+        uses: databricks/setup-cli@main
+
+      # Fluxo para branch DEVELOP (Deploy Dev -> Testes -> Deploy Staging)
+      - name: Deploy em Dev
+        if: github.ref_name == 'develop'
+        run: databricks bundle deploy -t dev
+
+      - name: Executar Testes Unitários (Gate de Qualidade)
+        if: github.ref_name == 'develop'
+        run: databricks bundle run pytest_job -t dev
+
+      - name: Promover e Publicar em Staging
+        # O GitHub Actions só chega aqui se o passo anterior (testes) retornar exit code 0
+        if: github.ref_name == 'develop' && success()
+        run: databricks bundle deploy -t staging      
+
+      - name: Sincronizar branch staging no Git
+        if: github.ref_name == 'develop' && success()
+        run: |
+          git fetch origin
+          git push origin HEAD:staging
+
+      # Fluxo para branch MAIN (Deploy Prod após PR aprovado)
+      - name: Deploy em Produção
+        if: github.ref_name == 'main'
+        run: databricks bundle deploy -t prod

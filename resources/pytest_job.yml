@@ -1,0 +1,18 @@
+resources:
+  jobs:
+    pytest_job:
+      name: "[${bundle.target}] Run Unit Tests"
+      tasks:
+        - task_key: pytest_task
+          environment_key: default
+          spark_python_task:
+            python_file: ../src/pytest_databricks.py
+            parameters:
+              - "${workspace.file_path}/tests"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "4"
+            dependencies:
+              - pytest              
