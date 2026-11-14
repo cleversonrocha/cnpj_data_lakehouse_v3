@@ -38,11 +38,13 @@ jobs:
     steps:
       - name: Checkout do código
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Instalar Databricks CLI
         uses: databricks/setup-cli@main
 
-      # Fluxo para branch DEVELOP (Deploy Dev -> Testes -> Deploy Staging)
+      # Fluxo para branch DEVELOP (Deploy Dev -> Testes -> Merge Staging -> Deploy Staging)
       - name: Deploy em Dev
         if: github.ref_name == 'develop'
         run: databricks bundle deploy -t dev
@@ -51,16 +53,19 @@ jobs:
         if: github.ref_name == 'develop'
         run: databricks bundle run pytest_job -t dev
 
-      - name: Promover e Publicar em Staging
-        # O GitHub Actions só chega aqui se o passo anterior (testes) retornar exit code 0
-        if: github.ref_name == 'develop' && success()
-        run: databricks bundle deploy -t staging      
-
-      - name: Sincronizar branch staging no Git
+      - name: Merge develop into staging
         if: github.ref_name == 'develop' && success()
         run: |
-          git fetch origin
-          git push origin HEAD:staging
+          git config user.name "github-actions[bot]"
+          git config user.email "cleverson.rocha82@gmail.com"
+          git fetch origin staging
+          git checkout -B staging origin/staging
+          git merge origin/develop --no-edit -m "chore(ci): promote develop to staging"
+          git push origin staging
+
+      - name: Publicar em Staging
+        if: github.ref_name == 'develop' && success()
+        run: databricks bundle deploy -t staging
 
       # Fluxo para branch MAIN (Deploy Prod após PR aprovado)
       - name: Deploy em Produção
