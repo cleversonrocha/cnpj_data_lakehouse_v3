@@ -1,0 +1,19 @@
+resources:
+  jobs:
+    pipeline_job:
+      name: "[${bundle.target}] Pipeline Job"      
+      tasks:
+        - task_key: download_data
+          environment_key: default
+          notebook_task:
+            notebook_path: ../src/download_data.ipynb
+            base_parameters:
+              BASE_URL: "https://arquivos.receitafederal.gov.br"
+              SHARE_TOKEN: "YggdBLfdninEJX9"
+              TARGET_DIR: "/2026-10"
+              OUTPUT_FOLDER: "/Volumes/cnpj_data_lakehouse_v3/bronze/raw/2026_10"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "4"          
