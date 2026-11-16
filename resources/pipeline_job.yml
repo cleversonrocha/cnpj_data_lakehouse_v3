@@ -1,8 +1,15 @@
 resources:
   jobs:
     pipeline_job:
-      name: "[${bundle.target}] Pipeline Job"      
-      tasks:
+      name: "[${bundle.target}] Pipeline Job"          
+      email_notifications:        
+        on_start:
+          - "cleverson.rocha82@gmail.com"      
+        on_success:
+          - "cleverson.rocha82@gmail.com"      
+        on_failure:
+          - "cleverson.rocha82@gmail.com"      
+      tasks:        
         - task_key: download_data
           environment_key: default
           notebook_task:
