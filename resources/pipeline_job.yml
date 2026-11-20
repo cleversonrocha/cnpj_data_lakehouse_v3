@@ -1,7 +1,7 @@
 resources:
   pipelines:
     bronze_pipeline:
-      name: "Bronze Pipeline"
+      name: "[${bundle.target}] Bronze Pipeline"
       catalog: "${var.catalog}"
       schema: "bronze"
       serverless: true
@@ -12,7 +12,7 @@ resources:
             path: ../src/transformations/ingest_bronze_data.py
 
     silver_pipeline:
-      name: "Silver Pipeline"
+      name: "[${bundle.target}] Silver Pipeline"
       catalog: "${var.catalog}"
       schema: "silver"
       serverless: true      
@@ -21,7 +21,7 @@ resources:
             path: ../src/transformations/ingest_silver_data.py
 
     intermediate_pipeline:
-      name: "Intermediate Pipeline"
+      name: "[${bundle.target}] Intermediate Pipeline"
       catalog: "${var.catalog}"
       schema: "silver"
       serverless: true      
@@ -30,18 +30,17 @@ resources:
             path: ../src/transformations/ingest_intermediate_data.py
 
     gold_pipeline:
-      name: "Gold Pipeline"
+      name: "[${bundle.target}] Gold Pipeline"
       catalog: "${var.catalog}"   
       schema: "gold"   
       serverless: true
-
       libraries:
         - file:
             path: ../src/transformations/ingest_gold_data.sql
 
   jobs:
     pipeline_job:
-      name: "Pipeline Job"
+      name: "[${bundle.target}] Pipeline Job"
       email_notifications:
         on_start:
           - "cleverson.rocha82@gmail.com"
