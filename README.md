@@ -82,13 +82,15 @@ Os testes são executados depois da Silver e antes das tabelas Intermediate e Go
 
 O projeto foi testado no Databricks Free Edition. Nesse ambiente, catálogos, schemas e volumes gerenciados precisam ser criados manualmente antes do primeiro deploy. Execute os comandos abaixo no SQL Editor do Databricks com uma identidade que tenha permissão para criar esses recursos.
 
-| Target | Catálogo | Schemas | Volume |
+| Target do bundle | Catálogo Unity Catalog | Schemas | Volume |
 |---|---|---|---|
 | `dev` | `dev_cnpj_data_lakehouse_v3` | `bronze`, `silver`, `gold` | `bronze.raw` |
-| `staging` | `stg_cnpj_data_lakehouse_v3` | `bronze`, `silver`, `gold` | `bronze.raw` |
-| `prod` | `prod_cnpj_data_lakehouse_v3` | `bronze`, `silver`, `gold` | `bronze.raw` |
+| `stg` | `stg_cnpj_data_lakehouse_v3` | `bronze`, `silver`, `gold` | `bronze.raw` |
+| `prd` | `prd_cnpj_data_lakehouse_v3` | `bronze`, `silver`, `gold` | `bronze.raw` |
 
-Crie os recursos Unity Catalog para os três ambientes:
+Os nomes dos catálogos vêm da variável `catalog` de cada target em [databricks.yml](databricks.yml). O mesmo catálogo é usado pelos pipelines e pelos caminhos dos volumes, por exemplo `/Volumes/stg_cnpj_data_lakehouse_v3/bronze/raw/2026_10` no target `stg`.
+
+Crie os recursos Unity Catalog para os três targets:
 
 ```sql
 CREATE CATALOG IF NOT EXISTS dev_cnpj_data_lakehouse_v3;
@@ -103,11 +105,11 @@ CREATE SCHEMA IF NOT EXISTS stg_cnpj_data_lakehouse_v3.silver;
 CREATE SCHEMA IF NOT EXISTS stg_cnpj_data_lakehouse_v3.gold;
 CREATE VOLUME IF NOT EXISTS stg_cnpj_data_lakehouse_v3.bronze.raw;
 
-CREATE CATALOG IF NOT EXISTS prod_cnpj_data_lakehouse_v3;
-CREATE SCHEMA IF NOT EXISTS prod_cnpj_data_lakehouse_v3.bronze;
-CREATE SCHEMA IF NOT EXISTS prod_cnpj_data_lakehouse_v3.silver;
-CREATE SCHEMA IF NOT EXISTS prod_cnpj_data_lakehouse_v3.gold;
-CREATE VOLUME IF NOT EXISTS prod_cnpj_data_lakehouse_v3.bronze.raw;
+CREATE CATALOG IF NOT EXISTS prd_cnpj_data_lakehouse_v3;
+CREATE SCHEMA IF NOT EXISTS prd_cnpj_data_lakehouse_v3.bronze;
+CREATE SCHEMA IF NOT EXISTS prd_cnpj_data_lakehouse_v3.silver;
+CREATE SCHEMA IF NOT EXISTS prd_cnpj_data_lakehouse_v3.gold;
+CREATE VOLUME IF NOT EXISTS prd_cnpj_data_lakehouse_v3.bronze.raw;
 ```
 
 ## Configuração local
@@ -125,12 +127,12 @@ databricks bundle validate --target dev
 
 ## Deploy
 
-O target padrão é `dev`. Os valores de catálogo e schema estão definidos em [databricks.yml](databricks.yml).
+O target padrão é `dev`. Os targets disponíveis são `dev`, `stg` e `prd`; os valores de catálogo e schema estão definidos em [databricks.yml](databricks.yml).
 
 ```bash
 databricks bundle deploy --target dev
-databricks bundle deploy --target staging
-databricks bundle deploy --target prod
+databricks bundle deploy --target stg
+databricks bundle deploy --target prd
 ```
 
 Para processar outra referência mensal da base:
@@ -162,20 +164,37 @@ O arquivo [tests/test_silver_quality.py](tests/test_silver_quality.py) contém v
 
 No Databricks, a task `run_silver_tests` usa `python_wheel_task` para chamar diretamente o entry point `pytest`, passando `tests/test_silver_quality.py` como arquivo de teste. Ela funciona como quality gate: Intermediate e Gold só executam depois que os testes passam.
 
+Os testes montam o catálogo a partir da configuração Spark `spark.bundle.target`, formando `<target>_cnpj_data_lakehouse_v3`. O valor padrão no código é `dev`; para executar os testes nos targets `stg` ou `prd`, essa configuração precisa corresponder ao target usado.
+
 ```text
 pytest --rootdir=. tests/test_silver_quality.py
 ```
 
 ## CI/CD
 
-A esteira em [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) valida o bundle nos três targets em pull requests e pushes para `develop`, `staging` e `main`.
+A esteira em [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) valida os três targets do bundle (`dev`, `stg` e `prd`) nos eventos configurados. Nomes de branches do Git e targets do bundle são diferentes:
 
-- Push em `develop`: deploy em `dev` e abertura de um PR de `develop` para `staging`, caso ainda não exista um PR aberto.
-- Merge do PR em `staging`: o push resultante dispara o deploy em `staging`.
-- Merge do PR em `main`: o push resultante dispara o deploy em `prod`.
+- **Pull requests** direcionados a `develop`, `databricks` ou `main`: executam a validação do bundle.
+- **Push em `develop`**: valida o bundle, faz deploy no target `dev` e abre um PR de `develop` para `staging` caso ainda não exista um PR aberto.
+- **Push em `staging`** (incluindo merge do PR de promoção): valida o bundle e faz deploy no target `stg`.
+- **Push em `main`**: valida o bundle e faz deploy no target `prd`.
+
+No workflow atual, o gatilho `pull_request` não inclui a branch `staging`; assim, o PR automático de `develop` para `staging` não dispara essa validação até que `staging` seja adicionada à lista de branches do gatilho.
+
+Para deploy manual, use os targets do bundle, não os nomes das branches:
+
+```bash
+databricks bundle deploy --target dev
+databricks bundle deploy --target stg
+databricks bundle deploy --target prd
+```
 
 A esteira precisa dos secrets `DATABRICKS_HOST` e `DATABRICKS_TOKEN` configurados no repositório GitHub.
 Como o workflow abre o PR de promoção automaticamente, habilite também **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
+
+### Transparência sobre o uso de IA
+
+Ferramentas de IA generativa foram utilizadas como apoio na revisão e atualização desta documentação. As descrições foram conferidas com os arquivos de configuração e código do repositório; as decisões e alterações do projeto permanecem sob responsabilidade dos mantenedores.
 
 ### Bloquear push direto em `main` e `staging`
 
@@ -191,8 +210,8 @@ Com isso, atualizações de `main` e `staging` devem entrar por PR aprovado e co
 
 ## Solução de problemas
 
-- **Catálogo ou schema não existe:** execute os comandos SQL de criação manual antes do deploy.
-- **Volume não encontrado:** confirme o catálogo, o schema `bronze` e o volume `raw`.
+- **Catálogo ou schema não existe:** confira a correspondência entre target e catálogo na tabela acima e crie os recursos do target antes do deploy.
+- **Volume não encontrado:** confirme que `bronze.raw` existe no catálogo associado ao target utilizado.
 - **Nenhum arquivo baixado:** confirme se `target_dir` corresponde a uma pasta válida da fonte pública.
 - **Arquivos antigos são reutilizados:** remova ou ajuste o conteúdo mensal no Volume quando houver necessidade de reprocessar a mesma referência.
 - **Falha nos testes de qualidade:** verifique o resultado da task `run_silver_tests` e os exemplos de chaves duplicadas ou referências órfãs no log.
