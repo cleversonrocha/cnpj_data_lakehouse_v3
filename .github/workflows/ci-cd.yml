@@ -2,10 +2,10 @@ name: Databricks Asset Bundle CI/CD
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, staging, main]
 
   push:
-    branches: [develop, main]
+    branches: [develop, staging, main]
 
 env:
   DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -34,40 +34,39 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout do código
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Instalar Databricks CLI
         uses: databricks/setup-cli@main
 
-      # Fluxo para branch DEVELOP (Deploy Dev -> Testes -> Merge Staging -> Deploy Staging)
       - name: Deploy em Dev
         if: github.ref_name == 'develop'
         run: databricks bundle deploy -t dev
 
-      - name: Executar Testes Unitários (Gate de Qualidade)
+      - name: Abrir PR de develop para staging
         if: github.ref_name == 'develop'
-        run: databricks bundle run pytest_job -t dev
-
-      - name: Merge develop into staging
-        if: github.ref_name == 'develop' && success()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "cleverson.rocha82@gmail.com"
-          git fetch origin staging
-          git checkout -B staging origin/staging
-          git merge origin/develop --no-edit -m "chore(ci): promote develop to staging"
-          git push origin staging
+          pr_number="$(gh pr list --base staging --head develop --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$pr_number" ]; then
+            gh pr create \
+              --base staging \
+              --head develop \
+              --title "chore(ci): promote develop to staging" \
+              --body "Promoção automática de develop para staging. Revise os checks antes de fazer o merge."
+          else
+            echo "Já existe um PR aberto de develop para staging: #$pr_number"
+          fi
 
-      - name: Publicar em Staging
-        if: github.ref_name == 'develop' && success()
+      - name: Deploy em Staging
+        if: github.ref_name == 'staging'
         run: databricks bundle deploy -t staging
 
-      # Fluxo para branch MAIN (Deploy Prod após PR aprovado)
       - name: Deploy em Produção
         if: github.ref_name == 'main'
         run: databricks bundle deploy -t prod
