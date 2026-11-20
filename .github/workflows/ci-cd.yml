@@ -2,7 +2,7 @@ name: Databricks Asset Bundle CI/CD
 
 on:
   pull_request:
-    branches: [develop, databricks , main]
+    branches: [develop, staging, main]
 
   push:
     branches: [develop, staging, main]
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Instalar Databricks CLI
         uses: databricks/setup-cli@main
@@ -38,14 +38,15 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Instalar Databricks CLI
         uses: databricks/setup-cli@main
 
+      # --- AMBIENTE DEV ---
       - name: Deploy em Dev
         if: github.ref_name == 'develop'
-        run: databricks bundle deploy -t dev
+        run: databricks bundle deploy -t dev      
 
       - name: Abrir PR de develop para staging
         if: github.ref_name == 'develop'
@@ -58,15 +59,33 @@ jobs:
               --base staging \
               --head develop \
               --title "chore(ci): promote develop to staging" \
-              --body "Promoção automática de develop para staging. Revise os checks antes de fazer o merge."
+              --body "Deploy e testes em Dev concluídos. Revise os checks antes de aprovar."
           else
             echo "Já existe um PR aberto de develop para staging: #$pr_number"
           fi
 
+      # --- AMBIENTE STAGING ---
       - name: Deploy em Staging
         if: github.ref_name == 'staging'
         run: databricks bundle deploy -t stg
 
+      - name: Abrir PR de staging para main
+        if: github.ref_name == 'staging'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr_number="$(gh pr list --base main --head staging --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$pr_number" ]; then
+            gh pr create \
+              --base main \
+              --head staging \
+              --title "chore(ci): promote staging to main" \
+              --body "Deploy em Staging concluído. Aprove para liberar em Produção."
+          else
+            echo "Já existe um PR aberto de staging para main: #$pr_number"
+          fi
+
+      # --- AMBIENTE PRODUÇÃO ---
       - name: Deploy em Produção
         if: github.ref_name == 'main'
         run: databricks bundle deploy -t prd
