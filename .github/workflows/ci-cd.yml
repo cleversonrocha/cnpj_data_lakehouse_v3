@@ -25,7 +25,7 @@ jobs:
       - name: Validar sintaxe do Bundle
         run: |
           databricks bundle validate -t dev
-          databricks bundle validate -t staging
+          databricks bundle validate -t stg
           databricks bundle validate -t prod
 
   # ETAPA 2: Entrega Contínua (CD) - Deploy, Testes e Promoção
