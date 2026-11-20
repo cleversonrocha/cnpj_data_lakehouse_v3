@@ -20,6 +20,12 @@ dev = [
     "ipykernel",
 ]
 
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)s] %(message)s"
+log_cli_date_format = "%H:%M:%S"
+
 [project.scripts]
 main = "cnpj_data_lakehouse_v3.main:main"
 
