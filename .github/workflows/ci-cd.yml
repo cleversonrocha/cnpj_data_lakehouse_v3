@@ -2,7 +2,7 @@ name: Databricks Asset Bundle CI/CD
 
 on:
   pull_request:
-    branches: [develop, staging, main]
+    branches: [develop, databricks , main]
 
   push:
     branches: [develop, staging, main]
@@ -25,8 +25,8 @@ jobs:
       - name: Validar sintaxe do Bundle
         run: |
           databricks bundle validate -t dev
-          databricks bundle validate -t staging
-          databricks bundle validate -t prod
+          databricks bundle validate -t stg
+          databricks bundle validate -t prd
 
   # ETAPA 2: Entrega Contínua (CD) - Deploy, Testes e Promoção
   cd-deploy:
@@ -65,8 +65,8 @@ jobs:
 
       - name: Deploy em Staging
         if: github.ref_name == 'staging'
-        run: databricks bundle deploy -t staging
+        run: databricks bundle deploy -t stg
 
       - name: Deploy em Produção
         if: github.ref_name == 'main'
-        run: databricks bundle deploy -t prod
+        run: databricks bundle deploy -t prd

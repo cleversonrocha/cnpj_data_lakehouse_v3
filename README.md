@@ -80,7 +80,7 @@ Os testes são executados depois da Silver e antes das tabelas Intermediate e Go
 
 ### Recursos Unity Catalog
 
-O projeto foi testado no Databricks Free Edition. Nesse ambiente, catálogos, schemas e volumes gerenciados podem precisar ser criados manualmente antes do primeiro deploy.
+O projeto foi testado no Databricks Free Edition. Nesse ambiente, catálogos, schemas e volumes gerenciados precisam ser criados manualmente antes do primeiro deploy. Execute os comandos abaixo no SQL Editor do Databricks com uma identidade que tenha permissão para criar esses recursos.
 
 | Target | Catálogo | Schemas | Volume |
 |---|---|---|---|
@@ -88,7 +88,7 @@ O projeto foi testado no Databricks Free Edition. Nesse ambiente, catálogos, sc
 | `staging` | `stg_cnpj_data_lakehouse_v3` | `bronze`, `silver`, `gold` | `bronze.raw` |
 | `prod` | `prod_cnpj_data_lakehouse_v3` | `bronze`, `silver`, `gold` | `bronze.raw` |
 
-Exemplo para o ambiente `dev`:
+Crie os recursos Unity Catalog para os três ambientes:
 
 ```sql
 CREATE CATALOG IF NOT EXISTS dev_cnpj_data_lakehouse_v3;
@@ -96,9 +96,19 @@ CREATE SCHEMA IF NOT EXISTS dev_cnpj_data_lakehouse_v3.bronze;
 CREATE SCHEMA IF NOT EXISTS dev_cnpj_data_lakehouse_v3.silver;
 CREATE SCHEMA IF NOT EXISTS dev_cnpj_data_lakehouse_v3.gold;
 CREATE VOLUME IF NOT EXISTS dev_cnpj_data_lakehouse_v3.bronze.raw;
-```
 
-Para os outros ambientes, substitua `dev` por `stg` ou `prod`.
+CREATE CATALOG IF NOT EXISTS stg_cnpj_data_lakehouse_v3;
+CREATE SCHEMA IF NOT EXISTS stg_cnpj_data_lakehouse_v3.bronze;
+CREATE SCHEMA IF NOT EXISTS stg_cnpj_data_lakehouse_v3.silver;
+CREATE SCHEMA IF NOT EXISTS stg_cnpj_data_lakehouse_v3.gold;
+CREATE VOLUME IF NOT EXISTS stg_cnpj_data_lakehouse_v3.bronze.raw;
+
+CREATE CATALOG IF NOT EXISTS prod_cnpj_data_lakehouse_v3;
+CREATE SCHEMA IF NOT EXISTS prod_cnpj_data_lakehouse_v3.bronze;
+CREATE SCHEMA IF NOT EXISTS prod_cnpj_data_lakehouse_v3.silver;
+CREATE SCHEMA IF NOT EXISTS prod_cnpj_data_lakehouse_v3.gold;
+CREATE VOLUME IF NOT EXISTS prod_cnpj_data_lakehouse_v3.bronze.raw;
+```
 
 ## Configuração local
 

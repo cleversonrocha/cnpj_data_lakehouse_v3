@@ -2,18 +2,18 @@ resources:
   pipelines:
     bronze_pipeline:
       name: "Bronze Pipeline"
-      catalog: "${bundle.target}_cnpj_data_lakehouse_v3"
+      catalog: "${var.catalog}"
       schema: "bronze"
       serverless: true
       configuration:        
-        OUTPUT_FOLDER: "/Volumes/${bundle.target}_cnpj_data_lakehouse_v3/bronze/raw/${var.year_month}"
+        OUTPUT_FOLDER: "/Volumes/${var.catalog}/bronze/raw/${var.year_month}"
       libraries:
         - file:
             path: ../src/transformations/ingest_bronze_data.py
 
     silver_pipeline:
       name: "Silver Pipeline"
-      catalog: "${bundle.target}_cnpj_data_lakehouse_v3"
+      catalog: "${var.catalog}"
       schema: "silver"
       serverless: true      
       libraries:
@@ -22,7 +22,7 @@ resources:
 
     intermediate_pipeline:
       name: "Intermediate Pipeline"
-      catalog: "${bundle.target}_cnpj_data_lakehouse_v3"
+      catalog: "${var.catalog}"
       schema: "silver"
       serverless: true      
       libraries:
@@ -57,7 +57,7 @@ resources:
             notebook_path: ../src/download_data.ipynb            
             base_parameters:              
               TARGET_DIR: ${var.target_dir}              
-              OUTPUT_FOLDER: "/Volumes/${bundle.target}_cnpj_data_lakehouse_v3/bronze/raw/${var.year_month}"  
+              OUTPUT_FOLDER: "/Volumes/${var.catalog}/bronze/raw/${var.year_month}"
 
         - task_key: ingest_bronze_data
           depends_on:
