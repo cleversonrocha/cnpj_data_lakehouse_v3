@@ -33,7 +33,7 @@ targets:
     variables:
       catalog: dev_cnpj_data_lakehouse_v3
       schema: bronze      
-  staging:
+  stg:
     mode: production    
     workspace:
       host: https://dbc-b01fefa4-1f16.cloud.databricks.com
@@ -44,7 +44,7 @@ targets:
     permissions:
       - user_name: cleverson.rocha82@gmail.com
         level: CAN_MANAGE
-  prod:
+  prd:
     mode: production    
     workspace:
       host: https://dbc-b01fefa4-1f16.cloud.databricks.com
