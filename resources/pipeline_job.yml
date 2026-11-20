@@ -1,0 +1,100 @@
+resources:
+  pipelines:
+    bronze_pipeline:
+      name: "[${bundle.target}] Bronze Pipeline"
+      catalog: "${var.catalog}"
+      schema: "bronze"
+      serverless: true
+      configuration:        
+        OUTPUT_FOLDER: "/Volumes/${var.catalog}/bronze/raw/${var.year_month}"
+      libraries:
+        - file:
+            path: ../src/transformations/ingest_bronze_data.py
+
+    silver_pipeline:
+      name: "[${bundle.target}] Silver Pipeline"
+      catalog: "${var.catalog}"
+      schema: "silver"
+      serverless: true      
+      libraries:
+        - file:
+            path: ../src/transformations/ingest_silver_data.py
+
+    intermediate_pipeline:
+      name: "[${bundle.target}] Intermediate Pipeline"
+      catalog: "${var.catalog}"
+      schema: "silver"
+      serverless: true      
+      libraries:
+        - file:
+            path: ../src/transformations/ingest_intermediate_data.py
+
+    gold_pipeline:
+      name: "[${bundle.target}] Gold Pipeline"
+      catalog: "${var.catalog}"   
+      schema: "gold"   
+      serverless: true
+      libraries:
+        - file:
+            path: ../src/transformations/ingest_gold_data.sql
+
+  jobs:
+    pipeline_job:
+      name: "[${bundle.target}] Pipeline Job"
+      email_notifications:
+        on_start:
+          - "cleverson.rocha82@gmail.com"
+        on_success:
+          - "cleverson.rocha82@gmail.com"
+        on_failure:
+          - "cleverson.rocha82@gmail.com"       
+
+      tasks:
+        - task_key: download_data          
+          environment_key: default
+          notebook_task:            
+            notebook_path: ../src/download_data.ipynb            
+            base_parameters:              
+              TARGET_DIR: ${var.target_dir}              
+              OUTPUT_FOLDER: "/Volumes/${var.catalog}/bronze/raw/${var.year_month}"
+
+        - task_key: ingest_bronze_data
+          depends_on:
+            - task_key: download_data
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.bronze_pipeline.id}                            
+
+        - task_key: ingest_silver_data
+          depends_on:
+            - task_key: ingest_bronze_data
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.silver_pipeline.id}    
+
+        - task_key: run_silver_tests
+          depends_on:
+            - task_key: ingest_silver_data
+          environment_key: default
+          python_wheel_task:
+            package_name: pytest
+            entry_point: pytest
+            parameters:
+              - "--rootdir=."
+              - "../tests/test_silver_quality.py"
+
+        - task_key: ingest_intermediate_data
+          depends_on:
+            - task_key: run_silver_tests
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.intermediate_pipeline.id}    
+
+        - task_key: ingest_gold_data                    
+          depends_on:
+            - task_key: ingest_intermediate_data
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.gold_pipeline.id}    
+             
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "4"
